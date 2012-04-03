@@ -14,43 +14,62 @@ namespace TypeClientCleaner
     {
         static void Main(string[] args)
         {
-            RegistryKey[] keys = {
-                Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Type 1 Installer\Type 1 Fonts", RegistryKeyPermissionCheck.ReadWriteSubTree),
-                Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", RegistryKeyPermissionCheck.ReadWriteSubTree)
-            };
-            
-            string profiledir = System.Environment.GetEnvironmentVariable("USERPROFILE");
-            string dbpath = profiledir + @"\Lokale Einstellungen\Anwendungsdaten\Extensis\UTC\cache\UniversalType.db";
+            List<RegistryKey> keys = new List<RegistryKey>();
+
+            int i = IntPtr.Size;
+
+            string appData = "";
+            if (System.Environment.GetEnvironmentVariable("LOCALAPPDATA") != null)
+            {
+                appData = System.Environment.GetEnvironmentVariable("LOCALAPPDATA");
+                keys.Add(Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Type 1 Installer", RegistryKeyPermissionCheck.ReadWriteSubTree));
+                keys.Add(Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", RegistryKeyPermissionCheck.ReadWriteSubTree));
+                keys.Add(Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Type 1 Installer", RegistryKeyPermissionCheck.ReadWriteSubTree));
+                keys.Add(Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Fonts", RegistryKeyPermissionCheck.ReadWriteSubTree));
+            }
+            else
+            {
+                appData = System.Environment.GetEnvironmentVariable("USERPROFILE")+ @"\Lokale Einstellungen\Anwendungsdaten";
+                keys.Add(Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Type 1 Installer", RegistryKeyPermissionCheck.ReadWriteSubTree));
+                keys.Add(Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", RegistryKeyPermissionCheck.ReadWriteSubTree));
+            }
+
+            string dbpath = appData + @"\Extensis\UTC\cache\UniversalType.db";
             foreach (var key in keys)
             {
-                foreach (var keyname in key.GetValueNames())
+                if (key != null)
                 {
-                    Boolean matches = false;
-                    try
+                    foreach (var keyname in key.GetValueNames())
                     {
-                        var keyval = (string[])key.GetValue(keyname);
-
-                        foreach (string str in keyval)
-                        {
-                            if (new Regex("UTC").Split(str).Length > 1)
-                                matches = true;
-                        }
-
-                    }
-                    catch {
+                        Boolean matches = false;
                         try
                         {
-                            var keyval = (string)key.GetValue(keyname);
-                            if (new Regex("UTC").Split(keyval).Length > 1)
-                                matches = true;
+                            var keyval = (string[])key.GetValue(keyname);
+
+                            foreach (string str in keyval)
+                            {
+                                if (new Regex("UTC").Split(str).Length > 1)
+                                    matches = true;
+                            }
+
                         }
-                        catch { 
-                        
+                        catch
+                        {
+                            try
+                            {
+                                var keyval = (string)key.GetValue(keyname);
+                                if (new Regex("UTC").Split(keyval).Length > 1)
+                                    matches = true;
+                            }
+                            catch
+                            {
+
+                            }
                         }
-                    }
-                    if (matches)
-                    {
-                        key.DeleteValue(keyname);
+                        if (matches)
+                        {
+                            key.DeleteValue(keyname);
+                        }
                     }
                 }
             }
